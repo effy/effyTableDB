@@ -41,10 +41,6 @@ class effyTable:
         except IndexError:
             return None
 
-    def nextIter(self, iter, diff=1):
-        if 0 <= iter[1]+diff < len(self.__indexes[iter[0]]):
-            return (iter[0], iter[1]+diff)
-
     def deleteRow(self, rowid):
         row = self.__rows[rowid]
         for col in self.__indexes:
