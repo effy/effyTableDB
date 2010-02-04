@@ -25,16 +25,21 @@ class effyTable:
     __maxrowid = 0
     __lock = Lock()
 
-    def addRow(self, row):
-        self.__lock.acquire()
-        self.__maxrowid += 1
-        self.__lock.release()
-        self.__rows[self.__maxrowid] = row
+    def __setRow(self, rowid, row):
+        self.__rows[rowid] = row
         for col in self.__indexes:
             if col in row:
                 self.__lock.acquire()
-                bisect.insort(self.__indexes[col], (row[col], self.__maxrowid))
+                bisect.insort(self.__indexes[col], (row[col], rowid))
                 self.__lock.release()
+        
+    def addRow(self, row):
+        self.__lock.acquire()
+        self.__maxrowid += 1
+        rowid = self.__maxrowid
+        self.__lock.release()
+        self.__setRow(rowid, row)
+        return rowid
 
     def getRowIds(self, col, from_value=None, to_value=None):
         if col in self.__indexes:
@@ -47,7 +52,7 @@ class effyTable:
 
     def getRow(self, rowid):
         try:
-            return self.__rows[rowid]
+            return self.__rows[rowid].copy()
         except IndexError:
             return None
 
@@ -59,6 +64,11 @@ class effyTable:
                 del self.__indexes[col][bisect.bisect_left(self.__indexes[col], (row[col], rowid))]
         del self.__rows[rowid]
         self.__lock.release()
+
+    def updateRow(self, rowid, row):
+        if rowid in self.__rows:
+            self.deleteRow(rowid)
+        self.__setRow(rowid, row)
 
     def setIndex(self, col):
         i = []

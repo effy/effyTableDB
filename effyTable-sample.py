@@ -23,7 +23,6 @@ t = effyTable()
 
 t.setIndex('age')
 t.setIndex('name')
-t.setIndex('memo')
 
 t.addRow({'name':'hoge', 'age':60})
 t.addRow({'name':'foo', 'age':20})
@@ -35,15 +34,25 @@ print "=== select * from t order by name"
 for id in t.getRowIds('name'):
     print t.getRow(id)
 
+print '=== update t set name = "fizz" where name = "fuzz"'
+id = t.getRowIds('name', 'fuzz')[0]
+row = t.getRow(id)
+row['name'] = 'fizz'
+t.updateRow(id, row)
+
+print "=== select * from t order by name"
+for id in t.getRowIds('name'):
+    print t.getRow(id)
+
 print "=== select * from t where age >= 30 order by age"
 for id in t.getRowIds('age', 30):
     print t.getRow(id)
 
-print "=== select * from t where 35 <= age and age <= 70 order by age desc"
+print "=== select * from t where 35 <= age < 70 order by age desc"
 for id in reversed(t.getRowIds('age', 35, 70)):
     print t.getRow(id)
 
-print "=== select * from t where age <= 40"
+print "=== select * from t where age < 40"
 ids = t.getRowIds('age', None, 40)
 for id in ids:
     print t.getRow(id)
