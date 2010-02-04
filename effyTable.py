@@ -18,6 +18,7 @@
 
 import bisect
 from multiprocessing import Lock
+from multiprocessing.managers import BaseManager
 
 class effyTable:
     __indexes = {}
@@ -93,3 +94,96 @@ class effyTable:
         print "rows:", self.__rows
         print "indexes:", self.__indexes
         print "maxrowid:", self.__maxrowid
+
+class PeerAddresses:
+    __addresses = effyTable()
+
+    def __init__(self):
+        self.__addresses.setIndex('key')
+        self.__addresses.setIndex('address')
+        
+    def getAddress(self, key):
+        id = self.__addresses.getRowIds('key', None, key)[-1]
+        row = self.__addresses.getRow(id)
+        return row['address']
+
+    def setAddress(self, key, address):
+        rows = self.__addresses.getRowIds('address', address)
+        if len(rows) > 0 and self.__addresses.getRow(rows[0])['address'] == address:
+            self.__addresses.updateRow(rows[0], {'key':key, 'address':address})
+        else:
+            self.__addresses.addRow({'key':key, 'address':address})
+
+"""
+usage of class Peer:
+
+*** at manager node
+from effyTable import Peer
+m=Peer(address=('localhost',1000), authkey='a')
+m.startManager()
+
+*** at node A
+from effyTable import Peer
+m=Peer(address=('localhost',1001), authkey='a')
+m.connectManager(address=('localhost', 1000))
+m.startPeer(key=None)
+
+*** at node B
+from effyTable import Peer
+m=Peer(address=('localhost',1002), authkey='a')
+m.connectManager(address=('localhost', 1000))
+m.startPeer(key='effy')
+
+*** at node A or B
+m.getTable('effy').setIndex('key')
+m.getTable('effy1').setIndex('key')
+
+(key,value) = ('sample', 12345)
+m.getTable(key).addRow({'key':key, 'value':value})
+"""
+
+class Peer(BaseManager):
+    __manager = None
+    __addresses = None
+
+    __table = None
+    __peers = None
+
+    __address = None
+    __authkey = None
+
+    def __init__(self, address, authkey):
+        self.__address = address
+        self.__authkey = authkey
+        BaseManager.__init__(self, address, authkey)
+
+    def startManager(self):
+        self.__addresses = PeerAddresses()
+        Peer.register('addresses', callable=lambda:self.__addresses)
+        self.start()
+
+    def connectManager(self, address):
+        Peer.register('addresses')
+        self.__manager = Peer(address=address, authkey=self.__authkey)
+        self.__manager.connect()
+        self.__addresses = self.__manager.addresses()
+    
+    def startPeer(self, key):
+        self.__addresses.setAddress(key, self.__address)
+        self.__table = effyTable()
+        self.__peers = {}
+        Peer.register('table', callable=lambda:self.__table)
+        self.start()
+   
+    def getTable(self, key):
+        address = self.__addresses.getAddress(key)
+        if address not in self.__peers:
+            Peer.register('table')
+            peer = Peer(address=address, authkey=self.__authkey)
+            peer.connect()
+            self.__peers[address] = peer
+        else:
+            peer = self.__peers[address]
+
+        return peer.table()
+ 
