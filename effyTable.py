@@ -17,23 +17,33 @@
 #
 
 import bisect
+from multiprocessing import Lock
 
 class effyTable:
     __indexes = {}
     __rows = {}
     __maxrowid = 0
+    __lock = Lock()
 
     def addRow(self, row):
+        self.__lock.acquire()
         self.__maxrowid += 1
+        self.__lock.release()
         self.__rows[self.__maxrowid] = row
         for col in self.__indexes:
             if col in row:
+                self.__lock.acquire()
                 bisect.insort(self.__indexes[col], (row[col], self.__maxrowid))
+                self.__lock.release()
 
-    def getRowIds(self, col, value):
+    def getRowIds(self, col, from_value=None, to_value=None):
         if col in self.__indexes:
-            i = bisect.bisect_left(self.__indexes[col], (value,))
-            return [index_row[1] for index_row in self.__indexes[col][i:]]
+            from_i = bisect.bisect_left(self.__indexes[col], (from_value,))
+            if to_value:
+                to_i = bisect.bisect_left(self.__indexes[col], (to_value,))
+                return [index_row[1] for index_row in self.__indexes[col][from_i:to_i]]
+            else: 
+                return [index_row[1] for index_row in self.__indexes[col][from_i:]]
 
     def getRow(self, rowid):
         try:
@@ -42,20 +52,24 @@ class effyTable:
             return None
 
     def deleteRow(self, rowid):
+        self.__lock.acquire()
         row = self.__rows[rowid]
         for col in self.__indexes:
             if col in row:
                 del self.__indexes[col][bisect.bisect_left(self.__indexes[col], (row[col], rowid))]
         del self.__rows[rowid]
+        self.__lock.release()
 
     def setIndex(self, col):
         i = []
         if col not in self.__indexes:
+            self.__lock.acquire()
             for rowid,row in self.__rows.items():
                 if col in row:
                     i.append((row[col],rowid))
             i.sort()
             self.__indexes[col] = i
+            self.__lock.release()
         return len(i)
 
     def removeIndex(self, col):

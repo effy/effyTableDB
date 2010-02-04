@@ -32,18 +32,27 @@ t.addRow({'name':'buzz', 'age':30, 'memo':'buzzbuzzbuzz'})
 t.addRow({'name':'fuzz', 'age':99, 'memo':'fuzzfuzzfuzz'})
 
 print "=== select * from t order by name"
-for id in t.getRowIds('name', None):
+for id in t.getRowIds('name'):
     print t.getRow(id)
 
 print "=== select * from t where age >= 30 order by age"
-for id in t.getRowIds('age',30):
+for id in t.getRowIds('age', 30):
+    print t.getRow(id)
+
+print "=== select * from t where 35 <= age and age <= 70 order by age desc"
+for id in reversed(t.getRowIds('age', 35, 70)):
+    print t.getRow(id)
+
+print "=== select * from t where age <= 40"
+ids = t.getRowIds('age', None, 40)
+for id in ids:
     print t.getRow(id)
 
 print "=== delete from t where age >= 40"
-for id in t.getRowIds('age', 40):
+for id in ids:
     t.deleteRow(id)
 
 print "=== select * from t order by age desc"
-for id in reversed(t.getRowIds('age', None)):
+for id in reversed(t.getRowIds('age')):
     print t.getRow(id)
 
